@@ -4,6 +4,7 @@ for Rasberry Pi
 
 1. method Clause 22 via I2C
 1. metohd Clause 45 via I2C
+2. metohd Roll Ball via I2C
 
 光のトランシーバーと異なる、UTP/Copper対応のトランシーバーを使うにはPHY固有のレジスタ操作が必要になることがあります。
 * １）レジスタは各社共通のものと、独自のものがあります。
