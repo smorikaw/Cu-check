@@ -26,8 +26,6 @@ Clause 45はレジスタアドレス16bit、値は16bit共通レジスタ 0-15
 MII MDIOとI2Cの違い<BR>
 MDIOがbit列単位の定義で有りI2Cはbyte単位ではあるが、ビット列に変換する事が可能。
 
-# Clause　30
-
 # RollBall <BR>
 Roll Ballとは固有のベンダー名ですが、Clause 45が普及する前の段階で拡大したPHY registerをアクセスする手法として実装され他のベンダー製品にも採用されています。<BR>
 '
