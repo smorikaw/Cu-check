@@ -1,4 +1,4 @@
-**Copper SFP PHY register check tool**
+## **Copper SFP PHY register check tool**
 for Rasberry Pi
 2023/12/25
 
@@ -12,6 +12,7 @@ for Rasberry Pi
 IEEE802.3にて定義されているMDIO Clause 22,45ですがMDIOのビット列の表記とI2Cでの仕様例の対応が判り難い。
 * ３）どのPHYを使用して居るかはPHY IDを判別して行いますが、PHY IDの値がPHYのデータシートの記載と異なるものがあります
 
+# register<BR>
 Clause 22はレジスタアドレスは8bit、値は16bit。0-15が共通。16-31がベンダー固有
 Clause 45はレジスタアドレス16bit、値は16bit共通レジスタ 0-15
 - 0x0000 :
