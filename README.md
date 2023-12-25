@@ -23,7 +23,7 @@ Clause 45はレジスタアドレス16bit、値は16bit共通レジスタ 0-15
 # PHY ID<BR>
 1000BASE-Tで最も一般的なMARVELL Alaska 88E1111の値は0x1410cc0、最下位8bitはrevisionを示すため複数の値があります。
 
-MII MDIOとI2Cの違い
+MII MDIOとI2Cの違い<BR>
 MDIOがbit列単位の定義で有りI2Cはbyte単位ではあるが、ビット列に変換する事が可能。
 
 # Clause　30
