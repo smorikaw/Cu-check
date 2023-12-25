@@ -18,23 +18,29 @@ Clause 45はレジスタアドレス16bit、値は16bit共通レジスタ 0-15
 - 0x0001 : status
 - 0x0002 : PHY ID上位16bit
 - 0x0003 : PHY ID下位16bit
-PHY ID
+  
+# PHY ID<BR>
 1000BASE-Tで最も一般的なMARVELL Alaska 88E1111の値は0x1410cc0、最下位8bitはrevisionを示すため複数の値があります。
 
 MII MDIOとI2Cの違い
 MDIOがbit列単位の定義で有りI2Cはbyte単位ではあるが、ビット列に変換する事が可能。
 
-Clause　30
+# Clause　30
 
-RollBallとは固有のベンダー名ですが、Clause 45が普及する前の段階で拡大したPHY registerをアクセスする手法として実装され他のベンダー製品にも採用されています。
-+ /* RollBall SFPs do not access internal PHY via I2C address 0x56, but
-+ * instead via address 0x51, when SFP page is set to 0x03 and password to
-+ * 0xffffffff:
-+ *
-+ * address  size  contents  description
-+ * -------  ----  --------  -----------
-+ * 0x80     1     CMD       0x01/0x02/0x04 for write/read/done
-+ * 0x81     1     DEV       Clause 45 device
-+ * 0x82     2     REG       Clause 45 register
-+ * 0x84     2     VAL       Register value
-+ */
+# RollBall <BR>
+Roll Ballとは固有のベンダー名ですが、Clause 45が普及する前の段階で拡大したPHY registerをアクセスする手法として実装され他のベンダー製品にも採用されています。<BR>
+'
+/* RollBall SFPs do not access internal PHY via I2C address 0x56, but
+* instead via address 0x51, when SFP page is set to 0x03 and password to
+* 0xffffffff:
+*
+* address  size  contents  description
+* -------  ----  --------  -----------
+* 0x80     1     CMD       0x01/0x02/0x04 for write/read/done
+* 0x81     1     DEV       Clause 45 device
+* 0x82     2     REG       Clause 45 register
+* 0x84     2     VAL       Register value
+
+*/'
+
+linux/drivers/net/mdio/mdio-i2c.cを参考にしてます。
