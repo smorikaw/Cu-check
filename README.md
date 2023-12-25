@@ -22,4 +22,17 @@ PHY ID
 
 MII MDIOとI2Cの違い
 MDIOがbit列単位の定義で有りI2Cはbyte単位ではあるが、ビット列に変換する事が可能。
+
 Clause　30
+
++ /* RollBall SFPs do not access internal PHY via I2C address 0x56, but
++ * instead via address 0x51, when SFP page is set to 0x03 and password to
++ * 0xffffffff:
++ *
++ * address  size  contents  description
++ * -------  ----  --------  -----------
++ * 0x80     1     CMD       0x01/0x02/0x04 for write/read/done
++ * 0x81     1     DEV       Clause 45 device
++ * 0x82     2     REG       Clause 45 register
++ * 0x84     2     VAL       Register value
++ */
