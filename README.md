@@ -8,7 +8,7 @@ for Rasberry Pi
 
 光のトランシーバーと異なる、UTP/Copper対応のトランシーバーを使うにはPHY固有のレジスタ操作が必要になることがあります。
 * １）レジスタは各社共通のものと、独自のものがあります。
-* ２）レジスタへのアクセス方法はClause 22とClause 45の二つの方法があります
+* ２）レジスタへのアクセス方法はClause 22とClause 45、RollBallの三っつの方法があります
 IEEE802.3にて定義されているMDIO Clause 22,45ですがMDIOのビット列の表記とI2Cでの仕様例の対応が判り難い。
 * ３）どのPHYを使用して居るかはPHY IDを判別して行いますが、PHY IDの値がPHYのデータシートの記載と異なるものがあります
 
@@ -26,6 +26,7 @@ MDIOがbit列単位の定義で有りI2Cはbyte単位ではあるが、ビット
 
 Clause　30
 
+RollBallとは固有のベンダー名ですが、Clause 45が普及する前の段階で拡大したPHY registerをアクセスする手法として実装され他のベンダー製品にも採用されています。
 + /* RollBall SFPs do not access internal PHY via I2C address 0x56, but
 + * instead via address 0x51, when SFP page is set to 0x03 and password to
 + * 0xffffffff:
