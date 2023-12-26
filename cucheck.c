@@ -23,6 +23,8 @@
 #define	I2C_SMBUS_BLOCK_MAX	32
 
 int fd;
+int mdio_type;
+
 int nGet_ASCII(int addr, int len, char* str){
 
 	int i,j;
@@ -63,7 +65,7 @@ int wiringPiI2CRead16(int fd){
 	union i2c_smbus_data data;
 	if(i2c_smbus_access (fd, I2C_SMBUS_READ, 0 , 3, &data))
 	return -1;
-	else return byte_order(data.word);
+	else return (data.word);
 }
 //
 //  Clause 45
@@ -75,7 +77,7 @@ int CL45_Read(int devid, int addr){
 	delay(2);
 //	return (wiringPiI2CReadReg16(fd,0x20));
 //	return (wiringPiI2CRead(fd) << 8) + wiringPiI2CRead(fd);
-	return wiringPiI2CRead16(fd);
+	return byte_order(wiringPiI2CRead16(fd));
 }
 //
 // i2cget 1 0x56 reg w
@@ -86,6 +88,36 @@ int CL22_Read(int devid, int reg){
 	return(byte_order(wiringPiI2CReadReg16(fd, reg)));
 }
 //
+// read RollBall type
+//
+int RB_Read(int devid, int reg){
+	fd = wiringPiI2CSetup(0x51);
+	wiringPiI2CWriteReg8(fd, 0x7b, 0xff);	// write password 
+	wiringPiI2CWriteReg8(fd, 0x7c, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7d, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7e, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7f, 0x03);	// select page 03
+
+	wiringPiI2CWriteReg8(fd, 0x81, 0x01);	// DEVADDR
+	wiringPiI2CWriteReg16(fd, 0x82, byte_order(reg));
+	wiringPiI2CWriteReg8(fd, 0x80, 0x02);	// MDIO read command
+	delay(100);				// wait 100ms
+//	fprintf(stderr,"RB status = %4d\n", wiringPiI2CReadReg8(fd, 0x80));
+//	wiringPiI2CReadReg8(fd, 0x80);		// check done status
+
+	return byte_order(wiringPiI2CReadReg16(fd, 0x84));
+}
+int PHY_Read(int devid, int reg){
+	int ret;
+	switch(mdio_type){
+	case 0:	ret = 0; break;
+	case 1: ret = CL22_Read(devid, reg); break;
+	case 2: ret = CL45_Read(devid, reg); break;
+	case 3: ret = RB_Read(devid, reg); break;
+	}
+	return ret;
+}
+//
 //	for broadcom 84891L(PHY ID 0x3590 5080/5081
 //
 // Decice ID 0x0002/0x0003
@@ -94,7 +126,7 @@ int CL22_Read(int devid, int reg){
 //  RCV_LINK-STATUS bit2
 //  CAP LOW POPOWER
 int Status(int data){
-	printf("Addr 0x0001(0x0002) = %04x : ", data);
+	printf("Addr 0x0001(0x0002)=%04x : ", data);
 
 	if(data & 0x0080) printf("Fault condition/");
 	if(data & 0x0004) printf("MPA/PMD link up/");
@@ -102,7 +134,7 @@ int Status(int data){
 	printf("\n");
 	return(data);
 }
-int BCM84891_Control(int data){
+int Control(int data){
 	int data2;
 	printf("Addr 0x0000(0x0000)=%04x : ", data);
 
@@ -127,7 +159,7 @@ int BCM84891_Control(int data){
 //
 // PMA/PMD speed ability DEVAD =1, address = 0x0004
 //
-int BCM84891_SpeedAb(int data){
+int SpeedAb(int data){
 	printf("Addr 0x0004(0x40b1)=%04x :", data);
 
 	if(data & 0x8000);		// bit 15 ignore on read
@@ -177,9 +209,6 @@ int BCM84891_LED(int data1, int data2){
 }
 //
 //
-int BCM84891_Status2(int data){
-	printf("Status = %04x\n", data);
-}
 // Firmware revition and DATE
 //
 int BCM84891_FwR(int data1, int data2){
@@ -215,16 +244,6 @@ int AN_Regs(){
 //
 //	MARVELL 88X33XX
 //
-// MPA/PMD Speed Ability register 0x0004
-int M88X33_Ab(int data){
-	printf("Addr 0x0004(0x0071)=%04x : ",data);
-	if(data & 0x0040) printf("10M Capable/");
-	if(data & 0x0020) printf("100M Capable/");
-	if(data & 0x0010) printf("1000M Capable/");
-	if(data & 0x0001) printf("10G Capable");
-	printf("\n");
-	return data;
-}
 int M88X33_SignalD(int data){
 	printf("10G PMA/PMD Signal Detect = %04x\n", data);
 	return data;
@@ -251,6 +270,7 @@ int TxP(int data){
 	else printf("\n");
 	return data;
 }
+//
 int M88X33_Fw(int data1,int data2){
 	printf("Firmware %04x%04x\n",data1,data2);
 	
@@ -259,9 +279,6 @@ int M88X33_Fw(int data1,int data2){
 // 
 int M88X33_CuS(int data){
 	int data2;
-	wiringPiI2CWriteReg16(fd,0x23,0x0880);
-	delay(200);
-	data = byte_order(wiringPiI2CReadReg16(fd,0x20));
 	printf("Copper status %04x\n",data);
 	data2 = data & 0xc00c;			// bit 2,3,14,15
 	if(data & 0x0400) {
@@ -279,6 +296,7 @@ int M88X33_CuS(int data){
 	else 			printf(" MDI\n");
    }	// if link up
 }
+// 30,0x400d
 int BCM84891_CuState(int data){
 	printf("Copper status = %04x",data);
 	if(data & 0x0002) printf(" Copper detect");
@@ -305,7 +323,7 @@ int main(){
 	char PN[32];
 	char SN[32];
 	char DATE[32];
-	uint32_t PHYID,PHYID2;
+	uint32_t PHYID,PHYID_CL22,PHYID_CL45, PHYID_RB;
 
 	const int offset =0;	// for SFP SFF-8472
 	fprintf(stderr, "Copper SFP/SFP+ PHY register check tool\n");
@@ -313,99 +331,75 @@ int main(){
 	wiringPiSetupGpio();
 	pinMode(4, INPUT);
 
-	fd = wiringPiI2CSetup(0x50);	// check page 00 get BASIC info
+	fd = wiringPiI2CSetup(0x50);	// check A0h page 00 get BASIC info
 	nGet_ASCII(40+offset, 16 , PN);
 	nGet_ASCII(68+offset, 16, SN);
 
 //////////
-	fd = wiringPiI2CSetup(0x56);
 
-//	PHYID = byte_order(wiringPiI2CReadReg16(fd, 0x02)) * 0x10000 +
-//		byte_order(wiringPiI2CReadReg16(fd, 0x03));
-	PHYID = CL22_Read(1, 0x0002) * 0x10000 + CL22_Read(1, 0x0003);
-	PHYID2 = CL45_Read(1, 0x0002) * 0x10000 +
+	PHYID_CL22 = CL22_Read(1, 0x0002) * 0x10000 + CL22_Read(1, 0x0003);
+	PHYID_CL45 = CL45_Read(1, 0x0002) * 0x10000 +
 		CL45_Read(1, 0x0003);
+	PHYID_RB = RB_Read(1, 0x0002) * 0x1000 + RB_Read(1, 0x0003);
 
 	printf("PN = %16s\n", PN);
 	printf("SN = %16s\n", SN);
-	printf("PHY ID = %08x/%08x\n", PHYID, PHYID2);
-	switch(PHYID){
-	case 0x35905080 :
-	case 0x35905081 :
-		printf("[CL22]Broadcom BCM84891L\n");	
-		BCM84891_Control(byte_order(wiringPiI2CReadReg16(fd,0x00)));
-		Status(byte_order(wiringPiI2CReadReg16(fd,0x01)));
-		BCM84891_SpeedAb(byte_order(wiringPiI2CReadReg16(fd,0x04)));
-		FastR(byte_order(wiringPiI2CReadReg16(fd,0x93)));
-                BCM84891_CuState(CL45_Read(30, 0x400d));
+	printf("PHY ID = [CL22]%08x/[CL45]%08x/[RB]%08x\n", PHYID_CL22, PHYID_CL45,PHYID_RB);
 
-		break;
-	case 0x0002b09a0:	// 011000xxxx (0x18)= 88X33xx ??
-	case 0x0002b09ab:	// 011010xxxx
-		printf("MARVELL 88X3310\n");
-		Status(byte_order(wiringPiI2CReadReg16(fd,0x01)));
-		M88X33_Ab(byte_order(wiringPiI2CReadReg16(fd,0x04)));
-		break;
-	//
-	// 0000-0001-0100-0001-0000-11xx-xxxx-xxxx = MARVELL
-	//
-	case 0x01410c97:	// 001001xxxx = 88E1112  Rev C2?
-	case 0x01410cc1:	// 001100xxxx = 88E1111
-	case 0x01410cc2:	// revision B0/B1/B2??
-		printf("MARVELL 88E1111\n");
-		Status(byte_order(wiringPiI2CReadReg16(fd,0x01)));
-		break;
-	case 0x600d8542:
-		Status(byte_order(wiringPiI2CReadReg16(fd, 0x01)));
-		break;
-	default: break;
+	switch(PHYID_RB & 0xffff0000){
+		case 0x35900000: mdio_type = 3;PHYID = PHYID_RB;
+			printf("=== MDIO type select RollBall\n");	
+			 break;
+		case 0x03590000: mdio_type = 3;PHYID = PHYID_RB;
+			printf("=== MDIO type select RollBall\n");
+			break;
+		case 0x00020000:
+		case 0x002b0000: mdio_type = 3;PHYID = PHYID_RB; 
+			printf("=== MDIO type select RollBall\n");
+			break;
+		default: mdio_type = 2;PHYID = PHYID_CL45;
+			printf("=== MDIO type select Clause 45\n");
+			 break;
 	}
-	switch(PHYID2){
+// standard register
+	Control(PHY_Read(1, 0x0000));
+	Status(PHY_Read(1, 0x0001));	
+	SpeedAb(PHY_Read(1, 0x0004));
+
+//
+	switch(PHYID){
+	case 0x03595081:
 	case 0x35905080:	// DEV_ID A0
 	case 0x35905081:	// DEV_ID B0
-		printf("[CL45] Broadcom BCM84891L\n");	
-		BCM84891_Control(CL45_Read(1, 0x0000));
-		Status(CL45_Read(1, 0x0001));
-		BCM84891_SpeedAb(CL45_Read(1, 0x0004));
-		BCM84891_Status2(CL45_Read(1, 0x400d));
-		FastR(CL45_Read(1, 0x0093));
+		printf("=== PHY Broadcom BCM84891L\n");	
+		FastR(PHY_Read(1, 0x0093));
 //		BCM84891_FastRC(CL45_Read(1, 0xa89f));
-//		BCM84891
-		TxP(CL45_Read(1, 0x0083));
-		BCM84891_CuState(CL45_Read(30, 0x400d));
-//		BCM84891_LED(CL45_Read(1, 0xa83c), CL45_Read(1, 0xa83d));
-//		AN_Regs();
-		BCM84891_FwR(CL45_Read(30, 0x400f), CL45_Read(30, 0x4010));
+		TxP(PHY_Read(1, 0x0083));
+		BCM84891_CuState(PHY_Read(30, 0x400d));
+		BCM84891_FwR(PHY_Read(30, 0x400f), PHY_Read(30, 0x4010));
 		break;
 	case 0x600d8542:
-		printf("[CL45]Broadcom \n");
-                BCM84891_Control(CL45_Read(1, 0x0000));
-		Status(CL45_Read(1, 0x01));
+		printf("=== PHY Broadcom Any\n");
 		TxP(CL45_Read(1, 0x0083));
-                BCM84891_SpeedAb(CL45_Read(1, 0x0004));
-                BCM84891_Status2(CL45_Read(1, 0x400d));
-
                 BCM84891_CuState(CL45_Read(30, 0x400d));
-		BCM84891_FwR(CL45_Read(30, 0x400f), CL45_Read(30, 0x4010));
+		BCM84891_FwR(PHY_Read(30, 0x400f), PHY_Read(30, 0x4010));
 		break;
 	case 0x600d8500:
-		printf("BCM84328\n");
+		printf("=== PHY BCM84328\n");
 		break;
 	case 0xae025150:
-		printf("[CL45]Broadcom BCM84881\n");
+		printf("=== PHY Broadcom BCM84881\n");
 		break;
 	case 0x31c31c12:
-		printf("[CL45]AQR113\n");
+		printf("=== PHY AQR113\n");
 		break;
+	case 0x0002b9ab:
 	case 0x002b09a0:
 	case 0x002b09ab:
-		printf("[CL45] MARVELL 88X3310\n");
-		Status(CL45_Read(1, 0x01));
-		M88X33_Ab(CL45_Read(1, 0x04));
-		M88X33_SignalD(CL45_Read(1, 0x0a));
+		printf("=== PHY MARVELL 88X3310\n");
 		TxP(CL45_Read(1, 0x83));
-		M88X33_Fw(CL45_Read(1, 0xc011),CL45_Read(1, 0xc012));
-		M88X33_CuS(fd);
+		M88X33_CuS(PHY_Read(3, 0x8008));
+		M88X33_Fw(PHY_Read(1, 0xc011),PHY_Read(1, 0xc012));
 	default: break;
 	}
 }
