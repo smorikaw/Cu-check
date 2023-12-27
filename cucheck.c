@@ -98,9 +98,26 @@ int RB_Read(int devid, int reg){
 	wiringPiI2CWriteReg8(fd, 0x7e, 0xff);
 	wiringPiI2CWriteReg8(fd, 0x7f, 0x03);	// select page 03
 
-	wiringPiI2CWriteReg8(fd, 0x81, 0x01);	// DEVADDR
+	wiringPiI2CWriteReg8(fd, 0x81, devid);	// DEVADDR
 	wiringPiI2CWriteReg16(fd, 0x82, byte_order(reg));
 	wiringPiI2CWriteReg8(fd, 0x80, 0x02);	// MDIO read command
+	delay(100);				// wait 100ms
+//	fprintf(stderr,"RB status = %4d\n", wiringPiI2CReadReg8(fd, 0x80));
+//	wiringPiI2CReadReg8(fd, 0x80);		// check done status
+
+	return byte_order(wiringPiI2CReadReg16(fd, 0x84));
+}
+int RB_Write(int devid, int reg){
+	fd = wiringPiI2CSetup(0x51);
+	wiringPiI2CWriteReg8(fd, 0x7b, 0xff);	// write password 
+	wiringPiI2CWriteReg8(fd, 0x7c, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7d, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7e, 0xff);
+	wiringPiI2CWriteReg8(fd, 0x7f, 0x03);	// select page 03
+
+	wiringPiI2CWriteReg8(fd, 0x81, devid);	// DEVADDR
+	wiringPiI2CWriteReg16(fd, 0x82, byte_order(reg));
+	wiringPiI2CWriteReg8(fd, 0x80, 0x03);	// MDIO write command
 	delay(100);				// wait 100ms
 //	fprintf(stderr,"RB status = %4d\n", wiringPiI2CReadReg8(fd, 0x80));
 //	wiringPiI2CReadReg8(fd, 0x80);		// check done status
@@ -160,7 +177,7 @@ int Control(int data){
 // PMA/PMD speed ability DEVAD =1, address = 0x0004
 //
 int SpeedAb(int data){
-	printf("Addr 0x0004(0x40b1)=%04x :", data);
+	printf("Addr 0x0004(0x40b1)=%04x : ", data);
 
 	if(data & 0x8000);		// bit 15 ignore on read
 	if(data & 0x4000) printf("CAP5G/");
@@ -190,13 +207,13 @@ int SpeedAb(int data){
 //
 int FastR(int data){
 	printf("1-0x93:Fast Retrain = %04x\n",data);
-	printf("Fast Retrain count RX=%2d/TX=%2d\n", data >>11, (data & 0x07c0)>> 6);	// bit 15:11 and 10:6
-	if(data & 0x0010) printf("Fast retrain supported\n");
-	else			printf("Fast retrain not supported\n");
-	if(data & 0x0008) printf("Fast retrain was negosiated\n");
-	else			printf("Fast retrain not negosiated\n");
-	if(data & 0x0001) printf("Fast retrain capability is enables\n");
-	else			printf("Fast retrain capability is disabled\n");
+	printf("    Fast Retrain count RX=%2d/TX=%2d\n", data >>11, (data & 0x07c0)>> 6);	// bit 15:11 and 10:6
+	if(data & 0x0010) printf("    Fast retrain supported\n");
+	else			printf("    Fast retrain not supported\n");
+	if(data & 0x0008) printf("    Fast retrain was negosiated\n");
+	else			printf("    Fast retrain not negosiated\n");
+	if(data & 0x0001) printf("    Fast retrain capability is enables\n");
+	else			printf("    Fast retrain capability is disabled\n");
 	return data;
 }
 int BCM84891_LED(int data1, int data2){
@@ -270,7 +287,7 @@ int TxP(int data){
 	else printf("\n");
 	return data;
 }
-//
+// devid 1, reg 0xc011/0xc012
 int M88X33_Fw(int data1,int data2){
 	printf("Firmware %04x%04x\n",data1,data2);
 	
@@ -279,30 +296,33 @@ int M88X33_Fw(int data1,int data2){
 // 
 int M88X33_CuS(int data){
 	int data2;
-	printf("Copper status %04x\n",data);
+	printf("Copper status %04x:",data);
 	data2 = data & 0xc00c;			// bit 2,3,14,15
 	if(data & 0x0400) {
-	printf("link up with ");
-	switch(data2){
-	case 0xc000:	printf("10G");	break;
-	case 0x8000:	printf("1000M");	break;
-	case 0x4000:	printf("100M");	break;
-	case 0x0000:	printf("10M");	break;
-	case 0x0008:	printf("2.5G");	break;
-	case 0x000c:	printf("5G");	break;
-	default:	break;
-	}
-	if(data & 0x0040) 	printf(" MDIX\n");
-	else 			printf(" MDI\n");
-   }	// if link up
+		printf("link up with ");
+		switch(data2){
+		case 0xc000:	printf("10G");	break;
+		case 0x8000:	printf("1000M");	break;
+		case 0x4000:	printf("100M");	break;
+		case 0x0000:	printf("10M");	break;
+		case 0x0008:	printf("2.5G");	break;
+		case 0x000c:	printf("5G");	break;
+		default:	break;
+		}
+	if(data & 0x0040) 	printf(" MDIX");
+	else 			printf(" MDI");
+   }else{  // if link up
+		printf("link down");
+	}	
+	printf("\n");
 }
 // 30,0x400d
 int BCM84891_CuState(int data){
-	printf("Copper status = %04x",data);
-	if(data & 0x0002) printf(" Copper detect");
-	else 		  printf(" Copper not detect");
+	printf("Copper status = %04x :",data);
+	if(data & 0x0002) printf(" Copper detect, ");
+	else 		  printf(" Copper not detect, ");
 	if(data & 0x0020) {
-	printf(" Link up with ");
+	printf("Link up with ");
         switch((data & 0x001c)){
         case 0x18:    printf("10G");  break;
         case 0x10:    printf("1000M");        break;
@@ -340,7 +360,7 @@ int main(){
 	PHYID_CL22 = CL22_Read(1, 0x0002) * 0x10000 + CL22_Read(1, 0x0003);
 	PHYID_CL45 = CL45_Read(1, 0x0002) * 0x10000 +
 		CL45_Read(1, 0x0003);
-	PHYID_RB = RB_Read(1, 0x0002) * 0x1000 + RB_Read(1, 0x0003);
+	PHYID_RB = RB_Read(1, 0x0002) * 0x10000 + RB_Read(1, 0x0003);
 
 	printf("PN = %16s\n", PN);
 	printf("SN = %16s\n", SN);
@@ -350,10 +370,6 @@ int main(){
 		case 0x35900000: mdio_type = 3;PHYID = PHYID_RB;
 			printf("=== MDIO type select RollBall\n");	
 			 break;
-		case 0x03590000: mdio_type = 3;PHYID = PHYID_RB;
-			printf("=== MDIO type select RollBall\n");
-			break;
-		case 0x00020000:
 		case 0x002b0000: mdio_type = 3;PHYID = PHYID_RB; 
 			printf("=== MDIO type select RollBall\n");
 			break;
@@ -368,7 +384,6 @@ int main(){
 
 //
 	switch(PHYID){
-	case 0x03595081:
 	case 0x35905080:	// DEV_ID A0
 	case 0x35905081:	// DEV_ID B0
 		printf("=== PHY Broadcom BCM84891L\n");	
@@ -377,11 +392,12 @@ int main(){
 		TxP(PHY_Read(1, 0x0083));
 		BCM84891_CuState(PHY_Read(30, 0x400d));
 		BCM84891_FwR(PHY_Read(30, 0x400f), PHY_Read(30, 0x4010));
+		printf("7-0xffe0 = %04x\n", PHY_Read(7, 0xffe0));
 		break;
 	case 0x600d8542:
 		printf("=== PHY Broadcom Any\n");
 		TxP(CL45_Read(1, 0x0083));
-                BCM84891_CuState(CL45_Read(30, 0x400d));
+        BCM84891_CuState(CL45_Read(30, 0x400d));
 		BCM84891_FwR(PHY_Read(30, 0x400f), PHY_Read(30, 0x4010));
 		break;
 	case 0x600d8500:
@@ -393,7 +409,6 @@ int main(){
 	case 0x31c31c12:
 		printf("=== PHY AQR113\n");
 		break;
-	case 0x0002b9ab:
 	case 0x002b09a0:
 	case 0x002b09ab:
 		printf("=== PHY MARVELL 88X3310\n");
